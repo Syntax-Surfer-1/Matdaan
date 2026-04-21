@@ -61,4 +61,41 @@ describe("t() translator", () => {
     // @ts-expect-error — intentionally invalid locale
     expect(t("xx", "nav.features")).toBe("Features")
   })
+
+  it("exposes Google Maps polling-finder copy in English", () => {
+    expect(t("en", "polling.title").length).toBeGreaterThan(0)
+    expect(t("en", "polling.openMaps").toLowerCase()).toContain("google")
+  })
+
+  it("delivers a non-empty Gujarati string for core dashboard copy", () => {
+    const guTitle = t("gu", "dashboard.welcome")
+    expect(guTitle.length).toBeGreaterThan(0)
+    // Gujarati should not be plain ASCII — detect at least one non-ASCII char.
+    expect(/[^\x00-\x7F]/.test(guTitle)).toBe(true)
+  })
+})
+
+describe("translation coverage", () => {
+  // A small sample of critical user-facing keys that MUST be translated in
+  // every non-English language. This prevents accidental fallbacks shipping.
+  const criticalKeys = [
+    "nav.features",
+    "hero.cta.start",
+    "dashboard.welcome",
+    "chat.heading",
+    "guide.markComplete",
+  ]
+
+  for (const lang of LANGUAGES.filter((l) => l.code !== "en")) {
+    it(`${lang.code} translates all critical UI copy`, () => {
+      for (const key of criticalKeys) {
+        const translated = t(lang.code, key)
+        const english = t("en", key)
+        // Every critical key must exist.
+        expect(translated).toBeTruthy()
+        // And must be genuinely localized (differ from English).
+        expect(translated).not.toBe(english)
+      }
+    })
+  }
 })

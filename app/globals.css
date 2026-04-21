@@ -76,7 +76,16 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-sans-custom), 'Geist', ui-sans-serif, system-ui;
+  /* Sans stack: Latin default via Inter, followed by all Indic fallbacks so
+     a single font-sans class renders correctly in every supported language.
+     The browser picks the first font that has a glyph for the character. */
+  --font-sans: var(--font-sans-custom),
+    var(--font-devanagari),
+    var(--font-gujarati),
+    var(--font-tamil),
+    var(--font-telugu),
+    var(--font-bengali),
+    'Geist', ui-sans-serif, system-ui;
   --font-serif: var(--font-serif-custom), 'Instrument Serif', ui-serif, Georgia;
   --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Code', monospace;
   --color-background: var(--background);
@@ -124,10 +133,19 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "ss01", "cv11";
+    /* Improve rendering consistency across OSes, esp. for Indic scripts. */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
   .font-serif {
     font-feature-settings: "liga", "dlig";
     letter-spacing: -0.01em;
+  }
+
+  /* Accessibility: always show a visible focus ring for keyboard users.
+     Uses :focus-visible so mouse clicks don't trigger it. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
 
@@ -156,5 +174,21 @@
   @keyframes shine {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+}
+
+/* Respect user motion preferences — WCAG 2.3.3 compliance. Kills shine,
+   transitions, and smooth scroll for users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .shine {
+    animation: none !important;
   }
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Vote, Settings2, LogOut, PartyPopper } from "lucide-react"
@@ -26,7 +27,13 @@ import { ElectionTimeline } from "./election-timeline"
 import { ChatPanel } from "./chat-panel"
 import { EmptyState } from "./empty-state"
 import { LanguageSwitcher } from "./language-switcher"
-import { CelebrationOverlay } from "./celebration-overlay"
+import { PollingStationFinder } from "./polling-station-finder"
+
+// Celebration pulls in framer-motion + confetti logic; load it only on demand.
+const CelebrationOverlay = dynamic(
+  () => import("./celebration-overlay").then((m) => m.CelebrationOverlay),
+  { ssr: false },
+)
 
 export function DashboardShell() {
   const router = useRouter()
@@ -161,6 +168,7 @@ export function DashboardShell() {
           <div className="space-y-6 min-w-0">
             <JourneyStepper statuses={statuses!} profile={profile} />
             <StepGuide profile={profile} statuses={statuses!} onComplete={completeStep} />
+            <PollingStationFinder profile={profile} />
             <ElectionTimeline profile={profile} />
           </div>
 

@@ -239,6 +239,19 @@ const en: Dict = {
   "celebration.close": "Back to dashboard",
   "celebration.shareText":
     "I just completed my voter journey on Matdaan. Ready for polling day!",
+
+  // Polling station finder (Google Maps)
+  "polling.eyebrow": "Google Maps",
+  "polling.title": "Find your polling station",
+  "polling.subtitle":
+    "Search nearby booths using Google Maps. For your official assigned booth, verify on the ECI portal with your EPIC number.",
+  "polling.queryLabel": "Area, city, or pincode",
+  "polling.queryPlaceholder": "e.g. Andheri West, Mumbai 400058",
+  "polling.search": "Search on map",
+  "polling.openMaps": "Open in Google Maps",
+  "polling.openEci": "Verify on ECI portal",
+  "polling.hint":
+    "Tip: Polling booths are assigned per constituency. Matdaan uses Google Maps to show nearby locations only.",
 }
 
 // ---------------------------------------------------------------------------
@@ -289,7 +302,7 @@ const hi: Dict = {
   "features.chat.title": "Gemini चैटबॉट",
   "features.chat.body":
     "अपनी भाषा में पूछें। उत्तर ECI दिशानिर्देशों और आपके संदर्भ पर आधारित होते हैं।",
-  "features.private.title": "गोपनीय डिफ़ॉल्ट रूप से",
+  "features.private.title": "ग��पनीय डिफ़ॉल्ट रूप से",
   "features.private.body":
     "हम कभी भी आधार, OTP या पासवर्ड नहीं मांगते। आपकी जानकारी आपके डिवाइस पर ही रहती है।",
 
@@ -501,7 +514,7 @@ const mr: Dict = {
     "मतदार यादीत नाव शोधा, EPIC डाउनलोड करा, बूथची पुष्टी करा.",
   "journey.landing.s4.title": "मतदान दिवस",
   "journey.landing.s4.body":
-    "काय न्यायचं, कुठे जायचं आणि बूथमध्ये काय अपेक्षित — संपूर्ण चेकलिस्ट.",
+    "काय न्यायचं, कुठ�� जायचं आणि बूथमध्ये काय अपेक्षित — संपूर्ण चेकलिस्ट.",
 
   "faq.eyebrow": "प्रश्न",
   "faq.title": "उत्तरे.",
@@ -692,7 +705,7 @@ const gu: Dict = {
     "મતદાર યાદીમાં નામ શોધો, EPIC ડાઉનલોડ કરો અને બૂથની પુષ્ટિ કરો.",
   "journey.landing.s4.title": "મતદાન દિવસ",
   "journey.landing.s4.body":
-    "શું લઈ જવું, ક્યાં જવું અને બૂથમાં શું અપેક્ષિત — સંપૂર્ણ ચેકલિસ્ટ.",
+    "શું લઈ ��વું, ક્યાં જવું અને બૂથમાં શું અપેક્ષિત — સંપૂર્ણ ચેકલિસ્ટ.",
 
   "faq.eyebrow": "પ્રશ્નો",
   "faq.title": "જવાબો.",
@@ -1131,7 +1144,7 @@ const te: Dict = {
   "dashboard.epic.issued": "జారీ అయింది",
   "dashboard.epic.pending": "వేచి ఉంది",
   "dashboard.overallProgress": "మొత్తం పురోగతి",
-  "dashboard.celebrate": "జరుపుకోండి",
+  "dashboard.celebrate": "��రుపుకోండి",
   "dashboard.openMenu": "ఖాతా మెనూ తెరువు",
   "dashboard.skipToMain": "ప్రధాన కంటెంట్‌కు దాటు",
 
@@ -1278,7 +1291,7 @@ const bn: Dict = {
     "অ্যাকাউন্ট দরকার নেই। বয়স, রাজ্য, অবস্থা শুধু ব্যক্তিগত নির্দেশনার জন্য।",
   "faq.q3": "আমি 18 না হলে?",
   "faq.a3":
-    "সমস্যা নেই। এ বছর 18 হলে রাজ্যের ভোটার তালিকা খুললেই প্রাক-নিবন্ধন করা যায়।",
+    "সমস্যা নেই। এ বছর 18 হলে রাজ্যের ভোটার তালিক�� খুললেই প্রাক-নিবন্ধন করা যায়।",
   "faq.q4": "চ্যাটবট কি আমার ভাষায় উত্তর দেয়?",
   "faq.a4":
     "হ্যাঁ। Gemini সহায়ক আপনার নির্বাচিত ভারতীয় ভাষায় উত্তর দেয়। EPIC, ফর্ম 6 এর মতো প্রযুক্তিগত শব্দ মূল রূপে।",

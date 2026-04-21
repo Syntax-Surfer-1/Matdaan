@@ -1,53 +1,31 @@
-import { streamText, convertToModelMessages, type UIMessage } from "ai"
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from "ai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { z } from "zod"
 import { LANGUAGES, isLang } from "@/lib/i18n"
 import type { Lang } from "@/lib/types"
+import { createRateLimiter, getClientIp, redactPII } from "@/lib/security"
 
 /**
- * Chat route — Gemini 2.5 Flash via @ai-sdk/google.
+ * Chat route — Gemini 2.5 Flash via @ai-sdk/google with Google Search grounding.
+ *
+ * Google Services used:
+ *  - Gemini 2.5 Flash (reasoning / generation)
+ *  - Google Search tool (real-time grounded answers — tool name MUST be `google_search`)
  *
  * Security:
- *  - Zod schema validation for payload shape.
- *  - Per-IP in-memory rate limit (best effort, hardens cold starts).
- *  - Message count + length caps to bound token cost.
- *  - PII redaction for Aadhaar / OTP / long digit strings before model call.
- *  - Generic error messages — never leak stack traces or env details.
+ *  - Zod validation for payload shape
+ *  - Per-IP in-memory rate limit (extracted to lib/security.ts for tests)
+ *  - Message count + length caps to bound token cost
+ *  - PII redaction for Aadhaar / OTP / long digit strings before the model call
+ *  - Generic error responses — never leak stack traces or env details
  */
 
 export const maxDuration = 30
-// AI SDK requires Node runtime (no edge).
+// AI SDK requires the Node runtime (no edge).
 export const runtime = "nodejs"
 
-// --- Rate limiter (best-effort, per-instance) --------------------------------
-
-const RATE_LIMIT_MAX = 20 // requests
-const RATE_LIMIT_WINDOW_MS = 60_000 // per minute
-const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
-
-function rateLimit(ip: string): { ok: boolean; retryAfter: number } {
-  const now = Date.now()
-  const bucket = rateLimitBuckets.get(ip)
-  if (!bucket || bucket.resetAt < now) {
-    rateLimitBuckets.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
-    return { ok: true, retryAfter: 0 }
-  }
-  if (bucket.count >= RATE_LIMIT_MAX) {
-    return { ok: false, retryAfter: Math.ceil((bucket.resetAt - now) / 1000) }
-  }
-  bucket.count += 1
-  return { ok: true, retryAfter: 0 }
-}
-
-// Periodically clean up expired buckets (~once per window).
-if (typeof globalThis.setInterval === "function") {
-  setInterval(() => {
-    const now = Date.now()
-    for (const [ip, bucket] of rateLimitBuckets) {
-      if (bucket.resetAt < now) rateLimitBuckets.delete(ip)
-    }
-  }, RATE_LIMIT_WINDOW_MS).unref?.()
-}
+// Single shared limiter per process / lambda instance.
+const limiter = createRateLimiter(20, 60_000)
 
 // --- Payload validation -------------------------------------------------------
 
@@ -56,7 +34,7 @@ const MAX_TEXT_LENGTH = 4_000
 
 const partSchema = z.union([
   z.object({ type: z.literal("text"), text: z.string().max(MAX_TEXT_LENGTH) }),
-  // Pass-through for any other part types the AI SDK may produce (images, etc.)
+  // Forward-compat for non-text parts (images, tool calls) produced by the AI SDK.
   z.object({ type: z.string() }).passthrough(),
 ])
 
@@ -78,24 +56,10 @@ const userContextSchema = z
   })
   .optional()
 
-const bodySchema = z.object({
+export const bodySchema = z.object({
   messages: z.array(messageSchema).min(1).max(MAX_MESSAGES),
   userContext: userContextSchema,
 })
-
-// --- PII redaction ------------------------------------------------------------
-
-/**
- * Best-effort scrubbing — converts 12-digit Aadhaar numbers and 4-8 digit
- * OTP-like strings into placeholders before the message reaches Gemini.
- * We do this on the server so the original text never leaves our process.
- */
-function redactPII(text: string): string {
-  return text
-    .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, "[redacted:aadhaar]") // 12-digit
-    .replace(/\b(?:otp|one[-\s]?time[-\s]?password)[:\s]*\d{4,8}\b/gi, "[redacted:otp]")
-    .replace(/\b\d{12,}\b/g, "[redacted:id]") // long unknown id numbers
-}
 
 function redactMessage(message: z.infer<typeof messageSchema>) {
   return {
@@ -117,10 +81,14 @@ Personality:
 - Use simple language a first-time voter can understand.
 - Mention official resources (NVSP, Form 6, EPIC, Booth Level Officer) where relevant.
 
+Tool use:
+- You have access to Google Search via the \`google_search\` tool. Use it ONLY when the user asks about time-sensitive or constituency-specific facts (current election dates, Model Code of Conduct announcements, polling booth addresses, candidate lists, ECI press notes). For evergreen "how to" questions, rely on your own knowledge — no need to search.
+- When you ground an answer with search, cite the source domain inline (e.g. "per eci.gov.in").
+
 Rules:
 - Never ask users for Aadhaar numbers, OTPs, passwords, or any sensitive data.
 - If a message contains "[redacted:...]", it means we removed PII — gently remind the user they do not need to share it.
-- If you don't know a date or constituency-specific detail, say so and point to the ECI website.
+- If you don't know a date or constituency-specific detail even after searching, say so and point to voters.eci.gov.in.
 - Keep replies under 140 words unless the user asks for more detail.
 - Use bullet points for steps. Bold key form names (e.g., **Form 6**).
 - Technical terms like EPIC, Form 6, NVSP, VVPAT may stay in English even in other languages.`
@@ -137,12 +105,8 @@ export async function POST(req: Request) {
     )
   }
 
-  // 2) Rate limit by IP (best-effort).
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "anon"
-  const { ok, retryAfter } = rateLimit(ip)
+  // 2) Rate limit by IP.
+  const { ok, retryAfter } = limiter.check(getClientIp(req))
   if (!ok) {
     return Response.json(
       { error: "Too many requests. Please slow down." },
@@ -184,12 +148,16 @@ export async function POST(req: Request) {
       model: google("gemini-2.5-flash"),
       system: `${BASE_SYSTEM}\n\n${languageDirective}${contextSuffix}`,
       messages: await convertToModelMessages(safeMessages),
+      // Google Search grounding — real-time web evidence via Google's index.
+      tools: {
+        google_search: google.tools.googleSearch({}),
+      },
+      stopWhen: stepCountIs(4),
     })
 
     return result.toUIMessageStreamResponse()
   } catch (err) {
     console.error("[v0] chat route error:", err)
-    // Never leak details to clients.
     return Response.json(
       { error: "The assistant is temporarily unavailable. Please try again." },
       { status: 502 },
